@@ -1,0 +1,16 @@
+{
+  "buildCommand": "npm run migrate && npm run build",
+  "outputDirectory": "client/dist",
+  "installCommand": "npm install && cd client && npm install",
+  "framework": null,
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "functions": {
+    "api/index.js": {
+      "maxDuration": 30,
+      "includeFiles": "server/**"
+    }
+  }
+}
