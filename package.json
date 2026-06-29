@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "install": "cd client && npm install --include=dev",
     "build": "node server/src/scripts/migrate.js && cd client && npm run build",
     "migrate": "node server/src/scripts/migrate.js",
     "seed": "node server/src/scripts/seed.js"
