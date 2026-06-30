@@ -1,7 +1,7 @@
 {
-  "buildCommand": "npm run migrate && npm run build",
+  "buildCommand": "npm run build",
   "outputDirectory": "client/dist",
-  "installCommand": "npm install && cd client && npm install",
+  "installCommand": "npm install",
   "framework": null,
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api" },
