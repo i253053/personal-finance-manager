@@ -1,137 +1,222 @@
 import { useState, useEffect, useCallback } from 'react';
+import toast from 'react-hot-toast';
 import Header from '../components/layout/Header';
+import { PlusIcon } from '../components/ui/icons';
 import Button from '../components/ui/Button';
-import Card from '../components/ui/Card';
+import Input from '../components/ui/Input';
+import Modal from '../components/ui/Modal';
 import Spinner from '../components/ui/Spinner';
-import { SummaryCards } from '../components/budgets/BudgetProgressBar';
-import BudgetProgressBar from '../components/budgets/BudgetProgressBar';
-import { TransactionListCompact } from '../components/transactions/TransactionRow';
-import { MiniTrendChart } from '../components/reports/Charts';
-import GoalCard from '../components/goals/GoalCard';
-import TransactionForm from '../components/transactions/TransactionForm';
-import { Link } from 'react-router-dom';
-import { getSummary, getTrends } from '../api/reports';
-import { getRecentTransactions } from '../api/transactions';
-import { getBudgets } from '../api/budgets';
-import { getGoals } from '../api/goals';
-import { processRecurring } from '../api/recurring';
-import { getCurrentMonthYear, formatMonthYear } from '../utils/format';
-import { useAuth } from '../context/AuthContext';
-import { PlusIcon, CheckCircleIcon, ArrowRightIcon } from '../components/ui/icons';
+import EmptyState from '../components/ui/EmptyState';
+import GoalCard, { GoalsSummary } from '../components/goals/GoalCard';
+import {
+  getGoals,
+  createGoal,
+  updateGoal,
+  contributeToGoal,
+  deleteGoal,
+} from '../api/goals';
 
-export default function DashboardPage() {
-  const { user } = useAuth();
-  const [{ month, year }, setMonthYear] = useState(getCurrentMonthYear);
-  const [summary, setSummary] = useState(null);
-  const [recent, setRecent] = useState([]);
-  const [budgets, setBudgets] = useState([]);
-  const [trends, setTrends] = useState([]);
+const emptyForm = { name: '', targetAmount: '', currentAmount: '0', targetDate: '' };
+
+export default function GoalsPage() {
   const [goals, setGoals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [showContribute, setShowContribute] = useState(null);
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState(emptyForm);
+  const [contribAmount, setContribAmount] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      await processRecurring();
-      const [summaryData, recentData, budgetData, trendData, goalsData] = await Promise.all([
-        getSummary(month, year),
-        getRecentTransactions(8),
-        getBudgets(month, year),
-        getTrends(6),
-        getGoals(),
-      ]);
-      setSummary(summaryData);
-      setRecent(recentData);
-      setBudgets(budgetData);
-      setTrends(trendData.data);
-      setGoals(goalsData.filter((g) => !g.isComplete).slice(0, 3));
+      const data = await getGoals();
+      setGoals(data);
     } catch {
-      // errors handled by interceptor
+      toast.error('Failed to load goals');
     } finally {
       setLoading(false);
     }
-  }, [month, year]);
+  }, []);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  const alertBudgets = budgets.filter((b) => b.status !== 'ok');
+  const openCreate = () => {
+    setEditing(null);
+    setForm(emptyForm);
+    setShowForm(true);
+  };
+
+  const openEdit = (goal) => {
+    setEditing(goal);
+    setForm({
+      name: goal.name,
+      targetAmount: String(goal.targetAmount),
+      currentAmount: String(goal.currentAmount),
+      targetDate: goal.targetDate || '',
+    });
+    setShowForm(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.name || !form.targetAmount) {
+      toast.error('Name and target amount are required');
+      return;
+    }
+    try {
+      const payload = {
+        name: form.name,
+        targetAmount: parseFloat(form.targetAmount),
+        currentAmount: parseFloat(form.currentAmount) || 0,
+        targetDate: form.targetDate || null,
+      };
+      if (editing) {
+        await updateGoal(editing.id, payload);
+        toast.success('Goal updated');
+      } else {
+        await createGoal(payload);
+        toast.success('Goal created');
+      }
+      setShowForm(false);
+      load();
+    } catch (err) {
+      toast.error(err.response?.data?.error?.message || 'Failed to save');
+    }
+  };
+
+  const handleContribute = async () => {
+    const amount = parseFloat(contribAmount);
+    if (!amount || amount <= 0) {
+      toast.error('Enter a valid amount');
+      return;
+    }
+    try {
+      await contributeToGoal(showContribute.id, amount);
+      toast.success(`Added ${amount} to ${showContribute.name}`);
+      setShowContribute(null);
+      setContribAmount('');
+      load();
+    } catch {
+      toast.error('Failed to contribute');
+    }
+  };
+
+  const handleDelete = async (goal) => {
+    if (!confirm(`Delete "${goal.name}"?`)) return;
+    try {
+      await deleteGoal(goal.id);
+      toast.success('Goal deleted');
+      load();
+    } catch {
+      toast.error('Failed to delete');
+    }
+  };
 
   return (
     <>
-      <Header
-        month={month}
-        year={year}
-        onMonthChange={(m, y) => setMonthYear({ month: m, year: y })}
-        showMonthPicker
-      />
-      <main className="p-4 lg:p-8 max-w-7xl mx-auto">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <Header />
+      <main className="p-4 lg:p-8 max-w-4xl mx-auto">
+        <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">
-              {user?.displayName ? `Welcome back, ${user.displayName.split(' ')[0]}` : 'Dashboard'}
-            </h1>
-            <p className="text-slate-500 dark:text-slate-400">Here’s your overview for {formatMonthYear(month, year)}</p>
+            <h1 className="text-2xl font-bold">Savings goals</h1>
+            <p className="text-slate-500">Track progress toward your financial targets</p>
           </div>
-          <Button onClick={() => setShowForm(true)} className="gap-1.5"><PlusIcon size={16} />Add transaction</Button>
+          <Button onClick={openCreate} className="gap-1.5"><PlusIcon size={16} />Add goal</Button>
         </div>
 
         {loading ? (
-          <div className="flex justify-center py-20">
-            <Spinner />
-          </div>
+          <div className="flex justify-center py-20"><Spinner /></div>
+        ) : goals.length === 0 ? (
+          <EmptyState
+            title="No savings goals yet"
+            description="Set a target and track your progress"
+            actionLabel="Create goal"
+            onAction={openCreate}
+          />
         ) : (
-          <div className="space-y-6">
-            {summary && <SummaryCards summary={summary} currency={user?.currency} />}
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <MiniTrendChart data={trends} />
-
-              <Card>
-                <h3 className="font-semibold mb-4">Budget alerts</h3>
-                {alertBudgets.length === 0 ? (
-                  <div className="flex flex-col items-center gap-2 py-6 text-center">
-                    <CheckCircleIcon size={26} className="text-emerald-500" />
-                    <p className="text-sm text-slate-500">All budgets are on track this month</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {alertBudgets.map((b) => (
-                      <BudgetProgressBar key={b.id} budget={b} />
-                    ))}
-                  </div>
-                )}
-              </Card>
+          <>
+            <GoalsSummary goals={goals} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {goals.map((goal) => (
+                <GoalCard
+                  key={goal.id}
+                  goal={goal}
+                  onContribute={(g) => setShowContribute(g)}
+                  onEdit={openEdit}
+                  onDelete={handleDelete}
+                />
+              ))}
             </div>
-
-            <Card>
-              <h3 className="font-semibold mb-4">Recent activity</h3>
-              <TransactionListCompact transactions={recent} />
-            </Card>
-
-            {goals.length > 0 && (
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold">Savings goals</h3>
-                  <Link to="/goals" className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400">
-                    View all
-                    <ArrowRightIcon size={14} />
-                  </Link>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {goals.map((goal) => (
-                    <GoalCard key={goal.id} goal={goal} />
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+          </>
         )}
       </main>
 
-      <TransactionForm open={showForm} onClose={() => setShowForm(false)} onSuccess={load} />
+      <Modal
+        open={showForm}
+        onClose={() => setShowForm(false)}
+        title={editing ? 'Edit Goal' : 'Add Goal'}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowForm(false)}>Cancel</Button>
+            <Button onClick={handleSave}>Save</Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <Input
+            label="Goal Name"
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            placeholder="e.g. Emergency Fund"
+          />
+          <Input
+            label="Target Amount"
+            type="number"
+            step="0.01"
+            min="0.01"
+            value={form.targetAmount}
+            onChange={(e) => setForm({ ...form, targetAmount: e.target.value })}
+          />
+          <Input
+            label="Current Amount"
+            type="number"
+            step="0.01"
+            min="0"
+            value={form.currentAmount}
+            onChange={(e) => setForm({ ...form, currentAmount: e.target.value })}
+          />
+          <Input
+            label="Target Date (optional)"
+            type="date"
+            value={form.targetDate}
+            onChange={(e) => setForm({ ...form, targetDate: e.target.value })}
+          />
+        </div>
+      </Modal>
+
+      <Modal
+        open={!!showContribute}
+        onClose={() => setShowContribute(null)}
+        title={`Contribute to ${showContribute?.name}`}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowContribute(null)}>Cancel</Button>
+            <Button onClick={handleContribute}>Add contribution</Button>
+          </>
+        }
+      >
+        <Input
+          label="Amount"
+          type="number"
+          step="0.01"
+          min="0.01"
+          value={contribAmount}
+          onChange={(e) => setContribAmount(e.target.value)}
+          placeholder="0.00"
+        />
+      </Modal>
     </>
   );
 }
