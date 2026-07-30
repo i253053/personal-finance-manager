@@ -1,4 +1,4 @@
-import api, { setTokens } from './client.js';
+import api, { setTokens, getRefreshToken } from './client.js';
 
 export async function register(data) {
   const res = await api.post('/auth/register', data);
@@ -13,7 +13,7 @@ export async function login(data) {
 }
 
 export async function logout() {
-  const refreshToken = localStorage.getItem('refreshToken');
+  const refreshToken = getRefreshToken();
   try {
     await api.post('/auth/logout', { refreshToken });
   } catch {
