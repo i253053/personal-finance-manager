@@ -2,25 +2,51 @@ import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
-let accessToken = localStorage.getItem('accessToken') || null;
-let refreshToken = localStorage.getItem('refreshToken') || null;
+// Tokens live in localStorage ("keep me signed in") or sessionStorage
+// (cleared when the browser closes). Whichever store has a token wins on load.
+let store = localStorage.getItem('accessToken')
+  ? localStorage
+  : sessionStorage.getItem('accessToken')
+    ? sessionStorage
+    : localStorage;
+
+let accessToken = store.getItem('accessToken') || null;
+let refreshToken = store.getItem('refreshToken') || null;
 let onAuthFailure = null;
+
+export function setTokenPersistence(remember) {
+  const next = remember ? localStorage : sessionStorage;
+  if (next !== store) {
+    store.removeItem('accessToken');
+    store.removeItem('refreshToken');
+    store = next;
+  }
+}
 
 export function setTokens(access, refresh) {
   accessToken = access;
   refreshToken = refresh;
-  if (access) localStorage.setItem('accessToken', access);
-  else localStorage.removeItem('accessToken');
-  if (refresh) localStorage.setItem('refreshToken', refresh);
-  else localStorage.removeItem('refreshToken');
+  if (access) store.setItem('accessToken', access);
+  else store.removeItem('accessToken');
+  if (refresh) store.setItem('refreshToken', refresh);
+  else store.removeItem('refreshToken');
 }
 
 export function getAccessToken() {
   return accessToken;
 }
 
+export function getRefreshToken() {
+  return refreshToken;
+}
+
 export function clearTokens() {
-  setTokens(null, null);
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('refreshToken');
+  sessionStorage.removeItem('accessToken');
+  sessionStorage.removeItem('refreshToken');
+  accessToken = null;
+  refreshToken = null;
 }
 
 export function setAuthFailureHandler(handler) {
