@@ -1,6 +1,7 @@
 import Card from '../ui/Card';
 import Badge from '../ui/Badge';
 import { formatCurrency, formatDate } from '../../utils/format';
+import { PlusIcon, PencilIcon, TrashIcon } from '../ui/icons';
 
 export default function GoalCard({ goal, onContribute, onEdit, onDelete }) {
   const pct = Math.min(goal.percentComplete, 100);
@@ -14,7 +15,7 @@ export default function GoalCard({ goal, onContribute, onEdit, onDelete }) {
             <p className="text-xs text-slate-500 mt-0.5">Target: {formatDate(goal.targetDate)}</p>
           )}
         </div>
-        {goal.isComplete && <Badge variant="ok">Complete!</Badge>}
+        {goal.isComplete && <Badge variant="ok">Completed</Badge>}
       </div>
 
       <div className="flex justify-between text-sm mb-2">
@@ -33,23 +34,35 @@ export default function GoalCard({ goal, onContribute, onEdit, onDelete }) {
         />
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex items-center gap-1">
         {!goal.isComplete && onContribute && (
           <button
             onClick={() => onContribute(goal)}
-            className="text-sm text-blue-600 hover:underline"
+            className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50"
           >
-            + Contribute
+            <PlusIcon size={13} />
+            Contribute
           </button>
         )}
+        <span className="flex-1" />
         {onEdit && (
-          <button onClick={() => onEdit(goal)} className="text-sm text-slate-600 hover:underline">
-            Edit
+          <button
+            onClick={() => onEdit(goal)}
+            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+            title="Edit goal"
+            aria-label="Edit goal"
+          >
+            <PencilIcon size={15} />
           </button>
         )}
         {onDelete && (
-          <button onClick={() => onDelete(goal)} className="text-sm text-red-600 hover:underline">
-            Delete
+          <button
+            onClick={() => onDelete(goal)}
+            className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-900/30 dark:hover:text-rose-400"
+            title="Delete goal"
+            aria-label="Delete goal"
+          >
+            <TrashIcon size={15} />
           </button>
         )}
       </div>
@@ -66,11 +79,11 @@ export function GoalsSummary({ goals }) {
   return (
     <div className="grid grid-cols-2 gap-4 mb-4">
       <Card>
-        <p className="text-sm text-slate-500">Active Goals</p>
+        <p className="text-sm text-slate-500">Active goals</p>
         <p className="text-2xl font-bold">{active.length}</p>
       </Card>
       <Card>
-        <p className="text-sm text-slate-500">Total Saved</p>
+        <p className="text-sm text-slate-500">Total saved</p>
         <p className="text-2xl font-bold text-emerald-600 tabular-nums">{formatCurrency(totalSaved)}</p>
       </Card>
     </div>
