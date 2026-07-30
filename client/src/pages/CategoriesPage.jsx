@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import Header from '../components/layout/Header';
+import { PlusIcon, PencilIcon, TrashIcon } from '../components/ui/icons';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
@@ -111,13 +112,27 @@ export default function CategoriesPage() {
               />
               <span>{cat.icon}</span>
               <span className="font-medium">{cat.name}</span>
-              {cat.isDefault && <Badge variant="default">default</Badge>}
+              {cat.isDefault && <Badge variant="default">Default</Badge>}
             </div>
             <div className="flex gap-2">
               {!cat.isDefault && (
                 <>
-                  <Button variant="ghost" size="sm" onClick={() => openEdit(cat)}>Edit</Button>
-                  <Button variant="ghost" size="sm" onClick={() => handleDelete(cat)}>Del</Button>
+                  <button
+                    onClick={() => openEdit(cat)}
+                    className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                    title="Edit category"
+                    aria-label="Edit category"
+                  >
+                    <PencilIcon size={15} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(cat)}
+                    className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-900/30 dark:hover:text-rose-400"
+                    title="Delete category"
+                    aria-label="Delete category"
+                  >
+                    <TrashIcon size={15} />
+                  </button>
                 </>
               )}
             </div>
@@ -133,15 +148,15 @@ export default function CategoriesPage() {
       <main className="p-4 lg:p-8 max-w-3xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold">Categories</h1>
-          <Button onClick={openCreate}>+ Add Category</Button>
+          <Button onClick={openCreate} className="gap-1.5"><PlusIcon size={16} />Add category</Button>
         </div>
 
         {loading ? (
           <div className="flex justify-center py-20"><Spinner /></div>
         ) : (
           <>
-            <CategoryGroup title="Expense Categories" items={expenseCats} />
-            <CategoryGroup title="Income Categories" items={incomeCats} />
+            <CategoryGroup title="Expense categories" items={expenseCats} />
+            <CategoryGroup title="Income categories" items={incomeCats} />
           </>
         )}
       </main>
