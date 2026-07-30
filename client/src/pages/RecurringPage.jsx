@@ -14,6 +14,7 @@ import {
   updateRecurring,
 } from '../api/recurring';
 import { formatCurrency, formatDate } from '../utils/format';
+import { PlusIcon } from '../components/ui/icons';
 
 const FREQ_LABELS = {
   daily: 'Daily',
@@ -90,15 +91,16 @@ export default function RecurringPage() {
       <main className="p-4 lg:p-8 max-w-4xl mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-2xl font-bold">Recurring Transactions</h1>
+            <h1 className="text-2xl font-bold">Recurring transactions</h1>
             <p className="text-slate-500">Automate income and expenses on a schedule</p>
           </div>
           <div className="flex gap-2">
             <Button variant="secondary" onClick={handleProcess} disabled={processing}>
-              {processing ? 'Processing...' : 'Run Due Now'}
+              {processing ? 'Processing…' : 'Run due now'}
             </Button>
-            <Button onClick={() => { setEditing(null); setShowForm(true); }}>
-              + Add Recurring
+            <Button onClick={() => { setEditing(null); setShowForm(true); }} className="gap-1.5">
+              <PlusIcon size={16} />
+              Add recurring
             </Button>
           </div>
         </div>
@@ -116,7 +118,7 @@ export default function RecurringPage() {
           <EmptyState
             title="No recurring transactions"
             description="Set up subscriptions, salary, or other repeating entries"
-            actionLabel="Add Recurring"
+            actionLabel="Add recurring"
             onAction={() => setShowForm(true)}
           />
         ) : (
