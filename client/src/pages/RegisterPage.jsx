@@ -1,187 +1,132 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import Header from '../components/layout/Header';
+import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
-import Card from '../components/ui/Card';
-import Badge from '../components/ui/Badge';
-import Spinner from '../components/ui/Spinner';
-import EmptyState from '../components/ui/EmptyState';
-import RecurringForm from '../components/recurring/RecurringForm';
-import {
-  getRecurring,
-  deleteRecurring,
-  processRecurring,
-  updateRecurring,
-} from '../api/recurring';
-import { formatCurrency, formatDate } from '../utils/format';
-import { PlusIcon } from '../components/ui/icons';
+import Logo from '../components/brand/Logo';
+import { EyeIcon, EyeOffIcon } from '../components/ui/icons';
+import { useAuth } from '../context/AuthContext';
+import { BRAND } from '../brand';
 
-const FREQ_LABELS = {
-  daily: 'Daily',
-  weekly: 'Weekly',
-  biweekly: 'Every 2 weeks',
-  monthly: 'Monthly',
-  yearly: 'Yearly',
-};
+export default function RegisterPage() {
+  const { register } = useAuth();
+  const navigate = useNavigate();
+  const [form, setForm] = useState({ displayName: '', email: '', password: '', confirm: '' });
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-export default function RecurringPage() {
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [processing, setProcessing] = useState(false);
-  const [showForm, setShowForm] = useState(false);
-  const [editing, setEditing] = useState(null);
+  const passwordOk = form.password.length >= 8 && /[0-9]/.test(form.password);
+  const confirmError =
+    form.confirm && form.password !== form.confirm ? 'Passwords do not match' : '';
 
-  const load = useCallback(async () => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (form.password !== form.confirm) {
+      toast.error('Passwords do not match');
+      return;
+    }
+    if (!passwordOk) {
+      toast.error('Password must be at least 8 characters and include a number');
+      return;
+    }
     setLoading(true);
     try {
-      const data = await getRecurring();
-      setItems(data);
-    } catch {
-      toast.error('Failed to load recurring transactions');
+      await register({ email: form.email, password: form.password, displayName: form.displayName });
+      toast.success('Account created — welcome!');
+      navigate('/');
+    } catch (err) {
+      toast.error(err.response?.data?.error?.message || 'Registration failed');
     } finally {
       setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  const handleProcess = async () => {
-    setProcessing(true);
-    try {
-      const result = await processRecurring();
-      if (result.processed > 0) {
-        toast.success(`Created ${result.processed} transaction(s)`);
-      } else {
-        toast.success('No due recurring transactions');
-      }
-      load();
-    } catch {
-      toast.error('Failed to process recurring transactions');
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  const handleToggle = async (item) => {
-    try {
-      await updateRecurring(item.id, { isActive: !item.isActive });
-      toast.success(item.isActive ? 'Paused' : 'Resumed');
-      load();
-    } catch {
-      toast.error('Failed to update');
-    }
-  };
-
-  const handleDelete = async (item) => {
-    if (!confirm(`Delete recurring "${item.notes || item.category?.name}"?`)) return;
-    try {
-      await deleteRecurring(item.id);
-      toast.success('Deleted');
-      load();
-    } catch {
-      toast.error('Failed to delete');
     }
   };
 
   return (
-    <>
-      <Header />
-      <main className="p-4 lg:p-8 max-w-4xl mx-auto">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-2xl font-bold">Recurring transactions</h1>
-            <p className="text-slate-500">Automate income and expenses on a schedule</p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="secondary" onClick={handleProcess} disabled={processing}>
-              {processing ? 'Processing…' : 'Run due now'}
-            </Button>
-            <Button onClick={() => { setEditing(null); setShowForm(true); }} className="gap-1.5">
-              <PlusIcon size={16} />
-              Add recurring
-            </Button>
-          </div>
+    <div className="min-h-screen flex items-center justify-center p-6 sm:p-12 bg-white dark:bg-slate-950">
+      <div className="w-full max-w-sm">
+        <div className="mb-10 flex justify-center">
+          <Logo size={36} textClass="text-xl" />
         </div>
 
-        <Card className="mb-4 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
-          <p className="text-sm text-blue-800 dark:text-blue-200">
-            Due recurring transactions are processed automatically when you open the dashboard.
-            Use &quot;Run Due Now&quot; to process them immediately.
-          </p>
-        </Card>
+        <h2 className="text-2xl font-bold tracking-tight">Create your account</h2>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+          Start tracking your spending in minutes.
+        </p>
 
-        {loading ? (
-          <div className="flex justify-center py-20"><Spinner /></div>
-        ) : items.length === 0 ? (
-          <EmptyState
-            title="No recurring transactions"
-            description="Set up subscriptions, salary, or other repeating entries"
-            actionLabel="Add recurring"
-            onAction={() => setShowForm(true)}
+        <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+          <Input
+            label="Name"
+            autoComplete="name"
+            placeholder="Your name"
+            value={form.displayName}
+            onChange={(e) => setForm({ ...form, displayName: e.target.value })}
+            required
           />
-        ) : (
-          <div className="space-y-3">
-            {items.map((item) => (
-              <Card key={item.id} className={!item.isActive ? 'opacity-60' : ''}>
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-start gap-3">
-                    <span
-                      className="flex h-10 w-10 items-center justify-center rounded-full text-lg shrink-0"
-                      style={{ backgroundColor: (item.category?.color || '#3B82F6') + '22' }}
-                    >
-                      {item.category?.icon || '🔄'}
-                    </span>
-                    <div>
-                      <p className="font-medium">
-                        {item.category?.name}
-                        {!item.isActive && <Badge className="ml-2">Paused</Badge>}
-                      </p>
-                      <p className="text-sm text-slate-500">
-                        {FREQ_LABELS[item.frequency]} · Next: {formatDate(item.nextDate)}
-                      </p>
-                      {item.notes && <p className="text-sm text-slate-400 mt-0.5">{item.notes}</p>}
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className={`font-semibold tabular-nums ${item.type === 'income' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                      {item.type === 'income' ? '+' : '-'}{formatCurrency(item.amount)}
-                    </p>
-                    <div className="flex gap-2 mt-2 justify-end">
-                      <button
-                        onClick={() => handleToggle(item)}
-                        className="text-xs text-slate-600 hover:underline"
-                      >
-                        {item.isActive ? 'Pause' : 'Resume'}
-                      </button>
-                      <button
-                        onClick={() => { setEditing(item); setShowForm(true); }}
-                        className="text-xs text-blue-600 hover:underline"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(item)}
-                        className="text-xs text-red-600 hover:underline"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        )}
-      </main>
+          <Input
+            label="Email"
+            type="email"
+            autoComplete="email"
+            placeholder="you@example.com"
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+            required
+          />
 
-      <RecurringForm
-        open={showForm}
-        onClose={() => { setShowForm(false); setEditing(null); }}
-        onSuccess={load}
-        item={editing}
-      />
-    </>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+              Password
+            </label>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="new-password"
+                placeholder="••••••••"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                required
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 pr-10 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-800 dark:border-slate-600"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((s) => !s)}
+                className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
+              </button>
+            </div>
+            <p
+              className={`mt-1 text-xs ${
+                form.password && !passwordOk ? 'text-amber-600' : 'text-slate-400'
+              }`}
+            >
+              At least 8 characters, including a number.
+            </p>
+          </div>
+
+          <Input
+            label="Confirm password"
+            type={showPassword ? 'text' : 'password'}
+            autoComplete="new-password"
+            placeholder="••••••••"
+            value={form.confirm}
+            onChange={(e) => setForm({ ...form, confirm: e.target.value })}
+            error={confirmError}
+            required
+          />
+
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? 'Creating account…' : 'Create account'}
+          </Button>
+        </form>
+
+        <p className="mt-8 text-center text-sm text-slate-500 dark:text-slate-400">
+          Already using {BRAND.name}?{' '}
+          <Link to="/login" className="font-medium text-blue-600 hover:underline dark:text-blue-400">
+            Sign in
+          </Link>
+        </p>
+      </div>
+    </div>
   );
 }
