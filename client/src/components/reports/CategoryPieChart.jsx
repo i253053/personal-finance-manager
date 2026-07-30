@@ -13,7 +13,7 @@ export default function CategoryPieChart({ data, grandTotal }) {
 
   return (
     <Card>
-      <h3 className="font-semibold mb-4">Spending by Category</h3>
+      <h3 className="font-semibold mb-4">Spending by category</h3>
       <ResponsiveContainer width="100%" height={300}>
         <PieChart>
           <Pie
@@ -29,7 +29,7 @@ export default function CategoryPieChart({ data, grandTotal }) {
               <Cell key={entry.categoryId} fill={entry.color} />
             ))}
           </Pie>
-          <Tooltip formatter={(v) => formatCurrency(v)} />
+          <Tooltip formatter={(v) => formatCurrency(v)} contentStyle={{ borderRadius: 12, border: '1px solid rgba(148,163,184,0.25)', fontSize: 13 }} />
           <Legend />
         </PieChart>
       </ResponsiveContainer>
@@ -43,7 +43,7 @@ export default function CategoryPieChart({ data, grandTotal }) {
 export function TopCategoriesList({ data }) {
   return (
     <Card>
-      <h3 className="font-semibold mb-4">Top Categories</h3>
+      <h3 className="font-semibold mb-4">Top categories</h3>
       <div className="space-y-3">
         {data.map((cat, i) => (
           <div key={cat.categoryId} className="flex items-center justify-between">
