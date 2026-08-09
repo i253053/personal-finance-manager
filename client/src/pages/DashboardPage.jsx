@@ -1,220 +1,162 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { PlusIcon } from '../components/ui/icons';
+import { PlusIcon, CheckCircleIcon, ArrowRightIcon } from '../components/ui/icons';
 import Button from '../components/ui/Button';
-import Input from '../components/ui/Input';
-import Modal from '../components/ui/Modal';
+import Card from '../components/ui/Card';
 import Spinner from '../components/ui/Spinner';
-import EmptyState from '../components/ui/EmptyState';
-import GoalCard, { GoalsSummary } from '../components/goals/GoalCard';
-import {
-  getGoals,
-  createGoal,
-  updateGoal,
-  contributeToGoal,
-  deleteGoal,
-} from '../api/goals';
+import BudgetProgressBar, { SummaryCards } from '../components/budgets/BudgetProgressBar';
+import { TransactionListCompact } from '../components/transactions/TransactionRow';
+import { MiniTrendChart } from '../components/reports/Charts';
+import TransactionForm from '../components/transactions/TransactionForm';
+import { formatCurrency, formatMonthYear, getCurrentMonthYear } from '../utils/format';
+import { useAuth } from '../context/AuthContext';
+import { getSummary, getTrends } from '../api/reports';
+import { getBudgets } from '../api/budgets';
+import { getGoals } from '../api/goals';
+import { getRecentTransactions } from '../api/transactions';
 
-const emptyForm = { name: '', targetAmount: '', currentAmount: '0', targetDate: '' };
-
-export default function GoalsPage() {
-  const [goals, setGoals] = useState([]);
+export default function DashboardPage() {
+  const { user } = useAuth();
+  const { month, year } = getCurrentMonthYear();
   const [loading, setLoading] = useState(true);
+  const [summary, setSummary] = useState(null);
+  const [trends, setTrends] = useState([]);
+  const [budgets, setBudgets] = useState([]);
+  const [goals, setGoals] = useState([]);
+  const [recent, setRecent] = useState([]);
   const [showForm, setShowForm] = useState(false);
-  const [showContribute, setShowContribute] = useState(null);
-  const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState(emptyForm);
-  const [contribAmount, setContribAmount] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getGoals();
-      setGoals(data);
+      const [summaryData, trendsData, budgetsData, goalsData, recentData] = await Promise.all([
+        getSummary(month, year),
+        getTrends(6),
+        getBudgets(month, year),
+        getGoals(),
+        getRecentTransactions(5),
+      ]);
+      setSummary(summaryData);
+      setTrends(trendsData.data || trendsData);
+      setBudgets(budgetsData);
+      setGoals(goalsData);
+      setRecent(recentData);
     } catch {
-      toast.error('Failed to load goals');
+      toast.error('Failed to load dashboard');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [month, year]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  const openCreate = () => {
-    setEditing(null);
-    setForm(emptyForm);
-    setShowForm(true);
-  };
+  const alertBudgets = budgets.filter((b) => b.status !== 'ok');
+  const activeGoals = goals.filter((g) => !g.isComplete).slice(0, 2);
 
-  const openEdit = (goal) => {
-    setEditing(goal);
-    setForm({
-      name: goal.name,
-      targetAmount: String(goal.targetAmount),
-      currentAmount: String(goal.currentAmount),
-      targetDate: goal.targetDate || '',
-    });
-    setShowForm(true);
-  };
-
-  const handleSave = async () => {
-    if (!form.name || !form.targetAmount) {
-      toast.error('Name and target amount are required');
-      return;
-    }
-    try {
-      const payload = {
-        name: form.name,
-        targetAmount: parseFloat(form.targetAmount),
-        currentAmount: parseFloat(form.currentAmount) || 0,
-        targetDate: form.targetDate || null,
-      };
-      if (editing) {
-        await updateGoal(editing.id, payload);
-        toast.success('Goal updated');
-      } else {
-        await createGoal(payload);
-        toast.success('Goal created');
-      }
-      setShowForm(false);
-      load();
-    } catch (err) {
-      toast.error(err.response?.data?.error?.message || 'Failed to save');
-    }
-  };
-
-  const handleContribute = async () => {
-    const amount = parseFloat(contribAmount);
-    if (!amount || amount <= 0) {
-      toast.error('Enter a valid amount');
-      return;
-    }
-    try {
-      await contributeToGoal(showContribute.id, amount);
-      toast.success(`Added ${amount} to ${showContribute.name}`);
-      setShowContribute(null);
-      setContribAmount('');
-      load();
-    } catch {
-      toast.error('Failed to contribute');
-    }
-  };
-
-  const handleDelete = async (goal) => {
-    if (!confirm(`Delete "${goal.name}"?`)) return;
-    try {
-      await deleteGoal(goal.id);
-      toast.success('Goal deleted');
-      load();
-    } catch {
-      toast.error('Failed to delete');
-    }
-  };
+  if (loading) {
+    return (
+      <main className="p-4 lg:p-8 max-w-6xl mx-auto">
+        <div className="flex justify-center py-20"><Spinner className="h-10 w-10" /></div>
+      </main>
+    );
+  }
 
   return (
     <>
-      <main className="p-4 lg:p-8 max-w-4xl mx-auto">
+      <main className="p-4 lg:p-8 max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold">Savings goals</h1>
-            <p className="text-slate-500">Track progress toward your financial targets</p>
+            <h1 className="text-2xl font-bold tracking-tight">
+              {user?.displayName ? `Welcome back, ${user.displayName.split(' ')[0]}` : 'Dashboard'}
+            </h1>
+            <p className="text-slate-500 dark:text-slate-400">
+              Here’s your overview for {formatMonthYear(month, year)}
+            </p>
           </div>
-          <Button onClick={openCreate} className="gap-1.5"><PlusIcon size={16} />Add goal</Button>
+          <Button onClick={() => setShowForm(true)} className="gap-1.5">
+            <PlusIcon size={16} />Add transaction
+          </Button>
         </div>
 
-        {loading ? (
-          <div className="flex justify-center py-20"><Spinner /></div>
-        ) : goals.length === 0 ? (
-          <EmptyState
-            title="No savings goals yet"
-            description="Set a target and track your progress"
-            actionLabel="Create goal"
-            onAction={openCreate}
-          />
-        ) : (
-          <>
-            <GoalsSummary goals={goals} />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {goals.map((goal) => (
-                <GoalCard
-                  key={goal.id}
-                  goal={goal}
-                  onContribute={(g) => setShowContribute(g)}
-                  onEdit={openEdit}
-                  onDelete={handleDelete}
-                />
+        {summary && <SummaryCards summary={summary} />}
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+          <MiniTrendChart data={trends} />
+
+          <Card>
+            <h3 className="font-semibold mb-4">Budget alerts</h3>
+            {alertBudgets.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 py-6 text-center">
+                <CheckCircleIcon size={26} className="text-emerald-500" />
+                <p className="text-sm text-slate-500">All budgets are on track this month</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {alertBudgets.map((b) => (
+                  <BudgetProgressBar key={b.id} budget={b} />
+                ))}
+              </div>
+            )}
+          </Card>
+        </div>
+
+        <Card className="mt-4">
+          <h3 className="font-semibold mb-4">Recent activity</h3>
+          <TransactionListCompact transactions={recent} />
+        </Card>
+
+        <div className="mt-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold">Savings goals</h3>
+            <Link
+              to="/goals"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400"
+            >
+              View all
+              <ArrowRightIcon size={14} />
+            </Link>
+          </div>
+          {activeGoals.length === 0 ? (
+            <Card>
+              <p className="text-sm text-slate-500 text-center py-4">No active goals yet</p>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {activeGoals.map((g) => (
+                <Card key={g.id}>
+                  <p className="font-medium">{g.name}</p>
+                  {g.targetDate && (
+                    <p className="text-xs text-slate-400 mb-2">Target: {g.targetDate}</p>
+                  )}
+                  <div className="flex justify-between text-sm mb-1.5">
+                    <span className="tabular-nums text-slate-500 dark:text-slate-400">
+                      {formatCurrency(g.currentAmount)} / {formatCurrency(g.targetAmount)}
+                    </span>
+                    <span className="font-medium text-blue-600 dark:text-blue-400">
+                      {g.percentComplete}%
+                    </span>
+                  </div>
+                  <div className="h-2 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-blue-500 transition-all duration-500"
+                      style={{ width: `${Math.min(g.percentComplete, 100)}%` }}
+                    />
+                  </div>
+                </Card>
               ))}
             </div>
-          </>
-        )}
+          )}
+        </div>
       </main>
 
-      <Modal
+      <TransactionForm
         open={showForm}
         onClose={() => setShowForm(false)}
-        title={editing ? 'Edit Goal' : 'Add Goal'}
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setShowForm(false)}>Cancel</Button>
-            <Button onClick={handleSave}>Save</Button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          <Input
-            label="Goal Name"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            placeholder="e.g. Emergency Fund"
-          />
-          <Input
-            label="Target Amount"
-            type="number"
-            step="0.01"
-            min="0.01"
-            value={form.targetAmount}
-            onChange={(e) => setForm({ ...form, targetAmount: e.target.value })}
-          />
-          <Input
-            label="Current Amount"
-            type="number"
-            step="0.01"
-            min="0"
-            value={form.currentAmount}
-            onChange={(e) => setForm({ ...form, currentAmount: e.target.value })}
-          />
-          <Input
-            label="Target Date (optional)"
-            type="date"
-            value={form.targetDate}
-            onChange={(e) => setForm({ ...form, targetDate: e.target.value })}
-          />
-        </div>
-      </Modal>
-
-      <Modal
-        open={!!showContribute}
-        onClose={() => setShowContribute(null)}
-        title={`Contribute to ${showContribute?.name}`}
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setShowContribute(null)}>Cancel</Button>
-            <Button onClick={handleContribute}>Add contribution</Button>
-          </>
-        }
-      >
-        <Input
-          label="Amount"
-          type="number"
-          step="0.01"
-          min="0.01"
-          value={contribAmount}
-          onChange={(e) => setContribAmount(e.target.value)}
-          placeholder="0.00"
-        />
-      </Modal>
+        onSuccess={() => { setShowForm(false); load(); }}
+      />
     </>
   );
 }
