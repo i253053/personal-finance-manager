@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
-import Header from '../components/layout/Header';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
@@ -122,7 +121,6 @@ export default function BudgetsPage() {
 
   return (
     <>
-      <Header />
       <main className="p-4 lg:p-8 max-w-4xl mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
