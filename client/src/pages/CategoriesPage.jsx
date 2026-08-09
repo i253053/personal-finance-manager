@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
-import Header from '../components/layout/Header';
 import { PlusIcon, PencilIcon, TrashIcon } from '../components/ui/icons';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
@@ -144,7 +143,6 @@ export default function CategoriesPage() {
 
   return (
     <>
-      <Header />
       <main className="p-4 lg:p-8 max-w-3xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold">Categories</h1>
